@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
 </head>
+
 <body>
   <p id="output">
 
@@ -17,11 +19,10 @@
      * please report what breaks it.
      * 
      * Known issues:
-     * comma at start of a string key or value - low priority as it probably doesn't happen that often
-     * 
+     *  
      ************************************************************/
     // Don't change these
-    var raw_json = '{"glossary":{"title":"example glossary","GlossDiv":{"title":"S","GlossList":{"GlossEntry":{"ID":"SGML","SortAs":"SGML","GlossTerm":"Standard Generalized Markup Language","Acronym":"SGML","Abbrev":"ISO 8879:1986","GlossDef":{"para":"A meta-markup language, used to create markup languages such as DocBook.","GlossSeeAlso":["GML","XML"]},"GlossSee":"markup"}}}}}';
+    var raw_json = '{"glossary":{"tit,le":",example glossary","GlossDiv":{"title":"Big Momma\'s House","GlossList":{"GlossEntry":{"ID":"SGML","SortAs":"SGML","GlossTerm":"Standard Generalized Markup Language","Acronym":"SGML","Abbrev":"ISO 8879:1986","GlossDef":{"para":"A meta-markup language, used to create markup languages such as DocBook.","GlossSeeAlso":["GML","XML"]},"GlossSee":"markup"}}}}}';
     var formatted_json = '';
     var tab_count = 0;
     var previous_was_text = false;
@@ -31,7 +32,6 @@
     // Formatting decisions
     var newline = '<br>';
     var indent = '&nbsp;';
-    var single_quotes = false;
     var indent_size = 2;
 
     // Color decisions
@@ -40,89 +40,95 @@
     var text_color = '#00F';
     var colon_color = '#700';
     var quote_color = '#888';
+    var comma_color = 'pink';
 
     // Begin doing work
-    raw_json = raw_json.replaceAll("\"", "'"); // get consistency
-    if (!single_quotes) {
-      raw_json = raw_json.replaceAll("'", "\"");
-    }
-
     formatted_json += '<span style="font-family: \'Courier New\', monospace">';
     for (var i = 0; i < raw_json.length; i++) {
-      var char = raw_json.charAt(i);
-      var is_text = ",[{}]:\'\"".split(char).length === 1;
-      console.log(is_text, char);
-      if (is_text) {
-        var color = (inside_array > 0) || !is_field ? text_color : field_color;
+      var character = raw_json.charAt(i);
+      var is_character_text = ",[{}]:\"".split(character).length === 1;
+      if (is_character_text) {
+        var color = (inside_array > 0) || is_field ? field_color : text_color;
 
-        if (!previous_was_text) {
-          formatted_json += "<span style='color:" + color + "'>" + char;
+        if (previous_was_text) {
+          formatted_json += character;
         } else {
-          formatted_json += char;
+          formatted_json += "<span style='color:" + color + "'>" + character;
         }
 
         previous_was_text = true;
-      } else {     
-        if (previous_was_text && char !== ',') {
+      } else { 
+        // current character is not text
+        if (previous_was_text && character !== ',') {
           formatted_json += "</span>";
           previous_was_text = false;
         }
-        switch (char) {
+
+        switch (character) {
           case ',':
             if (previous_was_text) {
-              // detecting commas in strings
-              formatted_json += ',';
+              // detecting commas in text strings, but misses commas at the start of text strings
+              formatted_json += character;
+            } else if (",[{}]:\"".split(raw_json.charAt(i + 1)).length === 1) {
+              // detecting a comma at the beginning of a text string by looking to see if the next 
+              // character is text.  should never be out of bounds because a comma cannot be the final
+              // character of a valid json string.
+              // This is handled differently because the start of a text string needs a new span
+              color = is_field ? field_color : text_color;
+              formatted_json += "<span style='color:" + color + "'>" + character;
+              previous_was_text = true;
             } else {
-              formatted_json += char + newline;
+              // the comma is not part of a text string
+              formatted_json += '<span style="color:' + comma_color + '">';
+              formatted_json += character + '</span>' + newline;
               formatted_json += indent.repeat(indent_size * tab_count);
               is_field = true;
             }
-            break;  
+            break;
+
           case '[':
             formatted_json += '<span style="color:' + bracket_color + '">';
-
-            formatted_json += char + newline;
+            formatted_json += character + newline;
             tab_count++;
             formatted_json += indent.repeat(indent_size * tab_count);
-
             formatted_json += '</span>';
             inside_array++;
             break;
+
           case '{':
             formatted_json += '<span style="color:' + bracket_color + '">';
-
-            formatted_json += char + newline;
+            formatted_json += character + newline;
             tab_count++;
             formatted_json += indent.repeat(indent_size * tab_count);
-
             formatted_json += '</span>';
             is_field = true;
             break;
+
           case ']':
             inside_array--;
           case '}':
             formatted_json += '<span style="color:' + bracket_color + '">';
-
             tab_count--;
             formatted_json += newline;
-            formatted_json += indent.repeat(indent_size * tab_count) + char;
-
+            formatted_json += indent.repeat(indent_size * tab_count) + character;
             formatted_json += '</span>';
             break;
+
           case ':':
-            formatted_json += char + ' ';
+            formatted_json += '<span style="color:' + colon_color + '">';
+            formatted_json += character + ' ';
+            formatted_json += '</span>';
             is_field = false;
             break;
-          case '\'':
+
           case '"':
             formatted_json += '<span style="color:' + quote_color + '">';
-
-            formatted_json += char;
-
+            formatted_json += character;
             formatted_json += '</span>';
             break;
-          default:
 
+          default:
+            // all cases should be accounted for
         }
       }
     }
@@ -131,4 +137,5 @@
     document.getElementById("output").innerHTML = formatted_json;
   </script>
 </body>
+
 </html>
